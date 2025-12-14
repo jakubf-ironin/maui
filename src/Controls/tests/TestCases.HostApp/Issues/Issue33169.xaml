@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:ios="clr-namespace:Microsoft.Maui.Controls.PlatformConfiguration.iOSSpecific;assembly=Microsoft.Maui.Controls"
+             x:Class="Maui.Controls.Sample.Issues.Issue33169"
+             ios:Page.LargeTitleDisplay="Never"
+             Title="Issue 33169">
+
+    <Grid RowDefinitions="Auto,Auto,*">
+        <!-- Instructions -->
+        <VerticalStackLayout Grid.Row="0" Padding="10" Spacing="5" BackgroundColor="LightYellow">
+            <Label Text="iOS RefreshView with LargeTitles Issue" FontAttributes="Bold" AutomationId="InstructionLabel"/>
+            <Label Text="Pull down to trigger refresh. Without handler, behavior should be consistent." FontSize="12"/>
+            <Label x:Name="StatusLabel" Text="Status: Not refreshed yet" FontSize="12" AutomationId="StatusLabel"/>
+        </VerticalStackLayout>
+
+        <!-- Controls -->
+        <HorizontalStackLayout Grid.Row="1" Padding="10" Spacing="10">
+            <Button Text="Toggle Large Titles" 
+                    Clicked="OnToggleLargeTitles" 
+                    AutomationId="ToggleLargeTitlesButton"/>
+            <Button Text="Toggle Handler" 
+                    Clicked="OnToggleHandler" 
+                    AutomationId="ToggleHandlerButton"/>
+            <Label x:Name="ConfigLabel" 
+                   Text="LargeTitles: Never | Handler: OFF" 
+                   VerticalOptions="Center"
+                   AutomationId="ConfigLabel"/>
+        </HorizontalStackLayout>
+
+        <!-- RefreshView with CollectionView -->
+        <RefreshView x:Name="TestRefreshView"
+                     Grid.Row="2"
+                     AutomationId="TestRefreshView">
+            <CollectionView x:Name="TestCollectionView"
+                            AutomationId="TestCollectionView">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Grid Padding="10">
+                            <Label Text="{Binding .}" FontSize="16"/>
+                        </Grid>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+        </RefreshView>
+    </Grid>
+</ContentPage>

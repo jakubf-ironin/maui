@@ -2,6 +2,7 @@ using Android.App;
 using Android.Content.PM;
 using Android.Runtime;
 using Microsoft.Maui;
+using Microsoft.Maui.Handlers;
 
 namespace Maui.Controls.Sample.Platform
 {
@@ -15,5 +16,7 @@ namespace Maui.Controls.Sample.Platform
 	[Register("com.microsoft.maui.sandbox.MainActivity")]
 	public class MainActivity : MauiAppCompatActivity
 	{
+		static MainActivity()
+		{ }
 	}
 }
