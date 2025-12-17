@@ -5,7 +5,6 @@ public partial class MainPage : ContentPage
 	public MainPage()
 	{
 		InitializeComponent();
-		Console.WriteLine("asdasdasd");
 	}
 
 	async void OnNavigateToSubpage1(object sender, EventArgs e)
@@ -31,17 +30,21 @@ public partial class MainPage : ContentPage
 		Navigation.PushAsync(new Subpage1());
 	}
 
-	protected override async void OnAppearing()
+	protected override void OnAppearing()
 	{
 		base.OnAppearing();
-		AccessibilityFocusStore.RestoreFocus(this);
+		AccessibilityFocusStore.RestoreFocus();
 	}
 
-	protected override void OnDisappearing()
+	protected override async void OnNavigatedTo(NavigatedToEventArgs args)
 	{
-		base.OnDisappearing();
-		AccessibilityFocusStore.StopTracking();
+		base.OnNavigatedTo(args);
+		if (args.NavigationType == NavigationType.Pop)
+		{
+			AccessibilityFocusStore.RestoreFocus();
+		}
 	}
+
 
 	class Subpage1 : ContentPage
 	{
@@ -64,17 +67,22 @@ public partial class MainPage : ContentPage
 				}
 			};
 		}
-		protected override async void OnAppearing()
+
+		protected override void OnAppearing()
 		{
 			base.OnAppearing();
-			AccessibilityFocusStore.RestoreFocus(this);
+			AccessibilityFocusStore.RestoreFocus();
 		}
 
-		protected override void OnDisappearing()
+		protected override void OnNavigatedTo(NavigatedToEventArgs args)
 		{
-			base.OnDisappearing();
-			AccessibilityFocusStore.StopTracking();
+			base.OnNavigatedTo(args);
+			if (args.NavigationType == NavigationType.Pop)
+			{
+				AccessibilityFocusStore.RestoreFocus();
+			}
 		}
+
 
 		class Subpage2 : ContentPage
 		{
@@ -84,17 +92,7 @@ public partial class MainPage : ContentPage
 				Content = new Label { Text = "This is Subpage 2" };
 			}
 
-			protected override async void OnAppearing()
-			{
-				base.OnAppearing();
-				AccessibilityFocusStore.RestoreFocus(this);
-			}
 
-			protected override void OnDisappearing()
-			{
-				base.OnDisappearing();
-				AccessibilityFocusStore.StopTracking();
-			}
 		}
 	}
 

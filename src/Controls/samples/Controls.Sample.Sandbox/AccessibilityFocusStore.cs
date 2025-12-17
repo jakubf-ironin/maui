@@ -1,4 +1,5 @@
 ﻿using Microsoft.Maui.Handlers;
+
 #if ANDROID
 using Android.Views;
 #elif IOS
@@ -8,96 +9,126 @@ using UIKit;
 
 namespace Maui.Controls.Sample;
 
+/// <summary>
+/// Manages accessibility focus restoration across page navigation for screen readers (TalkBack, VoiceOver).
+/// Tracks native view focus per page and restores it when returning to the same page.
+/// </summary>
 public static class AccessibilityFocusStore
 {
-	private static Page? _currentPage;
-	
-
+	/// <summary>
+	/// Initializes accessibility focus tracking on app startup.
+	/// Must be called in MauiProgram before building the app.
+	/// </summary>
 	public static MauiAppBuilder EnableFocusTracking(this MauiAppBuilder mauiAppBuilder)
 	{
 #if ANDROID
-		ViewHandler.ViewMapper.AppendToMapping("Tracking", (handler, view) =>
+		ViewHandler.ViewMapper.AppendToMapping("AccessibilityFocusTracking", (handler, view) =>
 		{
 			if (handler.PlatformView is Android.Views.View androidView)
-				androidView.SetAccessibilityDelegate(new TrackingAccessibilityDelegate());
+				androidView.SetAccessibilityDelegate(new AndroidFocusTracker());
 		});
 #elif IOS
+		var notificationName = new NSString("UIAccessibilityElementFocusedNotification");
 		NSNotificationCenter.DefaultCenter.AddObserver(
-			new NSString("UIAccessibilityElementFocusedNotification"),
+			notificationName,
 			notification =>
 			{
 				if (notification?.UserInfo?["UIAccessibilityFocusedElementKey"] is UIView focusedView)
 				{
-					Console.WriteLine($"VoiceOver focused on: {focusedView}");
-					Remember(focusedView);
+					RememberFocus(focusedView);
 				}
 			});
 #endif
 		return mauiAppBuilder;
 	}
 
-	public static void RestoreFocus(Page currentPage)
+	/// <summary>
+	/// Restores accessibility focus to the previously focused element on the given page.
+	/// </summary>
+	public static void RestoreFocus()
 	{
-		_currentPage = currentPage;
-
 #if ANDROID
-		if (_lastFocusedViewOnPage.TryGetValue(_currentPage, out var view) && view is not null)
-		{
-			view.PostDelayed(() =>
-			{
-				Console.WriteLine("Restoring VoiceOver focus to: "+view);
-				view.SendAccessibilityEvent(Android.Views.Accessibility.EventTypes.ViewHoverEnter);
-			}, 300);
-		}
+		RestoreFocusAndroid();
 #elif IOS
-		if (_lastFocusedViewOnPage.TryGetValue(_currentPage, out var uiView) && uiView is not null)
-		{
-			Console.WriteLine("Restoring VoiceOver focus to: "+uiView);
-			UIAccessibility.PostNotification(UIAccessibilityPostNotification.ScreenChanged, uiView);
-		}
+		RestoreFocusiOS();
 #endif
 	}
 
-	public static void StopTracking()
+#if ANDROID
+	private static Dictionary<int, WeakReference<Android.Views.View>> _focusByPageHashCode = new();
+
+	private static void RestoreFocusAndroid()
 	{
-		_currentPage = null;
+		int pageHash = GetCurrentPage().GetHashCode();
+		if (!_focusByPageHashCode.TryGetValue(pageHash, out var weakRef) || !weakRef.TryGetTarget(out var view) || view == null)
+		{
+			return;
+		}
+
+		view.PostDelayed(() => view.SendAccessibilityEvent(Android.Views.Accessibility.EventTypes.ViewHoverEnter), 100);
 	}
 
-#if ANDROID
-	private static Dictionary<Page, Android.Views.View> _lastFocusedViewOnPage = new();
-
-	private static void Remember(Android.Views.View nativeView)
+	private static void RememberFocus(Android.Views.View nativeView)
 	{
-		if (nativeView is null || _currentPage is null)
+		Page? currentPage = GetCurrentPage();
+
+		if (nativeView is null || currentPage is null)
 			return;
 
-		_lastFocusedViewOnPage[_currentPage] = nativeView;
+		_focusByPageHashCode[currentPage.GetHashCode()] = new WeakReference<Android.Views.View>(nativeView);
 	}
 
-#elif IOS
-	private static Dictionary<Page, UIView> _lastFocusedViewOnPage = new();
-
-	private static void Remember(UIView nativeView)
-	{
-		if (nativeView is null || _currentPage is null)
-			return;
-
-		_lastFocusedViewOnPage[_currentPage] = nativeView;
-	}
-#endif
-
-#if ANDROID
-	class TrackingAccessibilityDelegate : Android.Views.View.AccessibilityDelegate
+	private class AndroidFocusTracker : Android.Views.View.AccessibilityDelegate
 	{
 		public override void SendAccessibilityEvent(Android.Views.View host, Android.Views.Accessibility.EventTypes eventType)
 		{
 			base.SendAccessibilityEvent(host, eventType);
 
-			if (eventType == Android.Views.Accessibility.EventTypes.ViewHoverEnter ||
-			 	eventType == Android.Views.Accessibility.EventTypes.ViewFocused)
-				Remember(host);
+			if (eventType == Android.Views.Accessibility.EventTypes.ViewAccessibilityFocused)
+			{
+				RememberFocus(host);
+			}
 		}
 	}
+
+#elif IOS
+	private static Dictionary<int, WeakReference<UIView>> _focusByPageHashCode = new();
+
+	private static void RestoreFocusiOS()
+	{
+		int pageHash = GetCurrentPage().GetHashCode();
+		if (!_focusByPageHashCode.TryGetValue(pageHash, out var weakRef) || !weakRef.TryGetTarget(out var uiView) || uiView == null)
+		{
+			return;
+		}
+		
+		MainThread.BeginInvokeOnMainThread(() => UIAccessibility.PostNotification(UIAccessibilityPostNotification.ScreenChanged, uiView));
+	}
+
+	private static void RememberFocus(UIView nativeView)
+	{
+		Page? currentPage = GetCurrentPage();;
+
+		if (nativeView is null || currentPage is null)
+			return;
+
+		_focusByPageHashCode[currentPage.GetHashCode()] = new WeakReference<UIView>(nativeView);
+	}
 #endif
+
+	private static Page GetCurrentPage()
+	{
+		Page page =Shell.Current.CurrentPage
+
+		return page switch
+		{
+			Shell shell => shell.CurrentPage,
+			NavigationPage nav => nav.CurrentPage,
+			TabbedPage tabbed => tabbed.CurrentPage,
+			FlyoutPage flyout => flyout.Detail,
+			_ => page
+		};
+	}
+
 }
 
